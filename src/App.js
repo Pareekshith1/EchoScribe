@@ -4,32 +4,44 @@ const App = () => {
     const [meetURL, setMeetURL] = useState("");
     const [transcript, setTranscript] = useState([]);
     const [socket, setSocket] = useState(null);
-    const [mediaRecorder, setMediaRecorder] = useState(null);
     const [summary, setSummary] = useState("");
     const [loadingSummary, setLoadingSummary] = useState(false);
+    const [botActive, setBotActive] = useState(false);
 
     // 🔗 Connect WebSocket for live transcription
     useEffect(() => {
-        const connectWebSocket = () => {
-            const ws = new WebSocket("ws://localhost:5001");
+        let ws = new WebSocket("ws://localhost:5001");
 
-            ws.onopen = () => console.log("✅ WebSocket connected");
-            ws.onmessage = (event) => {
+        ws.onopen = () => console.log("✅ WebSocket connected");
+        ws.onmessage = (event) => {
+            try {
                 const data = JSON.parse(event.data);
-                setTranscript((prev) => [...prev, ...data.words]);
-            };
-
-            ws.onerror = (error) => console.error("❌ WebSocket error:", error);
-
-            ws.onclose = () => {
-                console.warn("⚠️ WebSocket closed. Reconnecting in 3 seconds...");
-                setTimeout(connectWebSocket, 3000);
-            };
-
-            setSocket(ws);
+                if (Array.isArray(data.words)) {
+                    setTranscript((prev) => [...prev, ...data.words]);
+                }
+            } catch (error) {
+                console.error("❌ Error parsing WebSocket message:", error);
+            }
         };
 
-        connectWebSocket();
+        ws.onerror = (error) => console.error("❌ WebSocket error:", error);
+
+        ws.onclose = () => {
+            console.warn("⚠ WebSocket closed. Reconnecting in 3 seconds...");
+            setTimeout(() => {
+                ws = new WebSocket("ws://localhost:5001");
+                setSocket(ws);
+            }, 3000);
+        };
+
+        setSocket(ws);
+
+        return () => {
+            ws.onclose = null;
+            ws.onerror = null;
+            ws.onmessage = null;
+            ws.close();
+        };
     }, []);
 
     // 🎤 Start Bot & Join Google Meet
@@ -53,6 +65,7 @@ const App = () => {
             }
 
             console.log("🚀 Bot started successfully and joined the meeting.");
+            setBotActive(true);
         } catch (error) {
             console.error("❌ Error starting bot:", error);
             alert("❌ Failed to start bot. Please check the server.");
@@ -75,94 +88,85 @@ const App = () => {
 
             console.log("🛑 Bot has left the meeting successfully.");
             alert("✅ Bot has left the meeting.");
-        } catch (error) {
-            console.error("❌ Error stopping bot:", error);
-            alert("❌ Failed to stop bot. Please check the server.");
-        }
-    };
+            setBotActive(false);
 
-    // 🎤 Start Recording & Send Audio to WebSocket
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-
-            recorder.ondataavailable = (event) => {
-                if (socket && socket.readyState === WebSocket.OPEN) {
-                    socket.send(event.data);
-                }
-            };
-
-            recorder.start(500);
-            setMediaRecorder(recorder);
-            console.log("🎙 Recording started...");
-        } catch (error) {
-            console.error("❌ Error starting recording:", error);
-        }
-    };
-
-    // 🛑 Stop Recording & Generate Summary
-    const stopRecording = async () => {
-        if (mediaRecorder) {
-            mediaRecorder.stop();
-            console.log("🎙 Recording stopped.");
-        }
-
-        setLoadingSummary(true);
-        try {
-            const response = await fetch("http://localhost:5000/generate-summary", {
+            // Fetch summary after stopping bot
+            setLoadingSummary(true);
+            const summaryResponse = await fetch("http://localhost:5000/generate-summary", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
             });
 
-            const data = await response.json();
-            setSummary(data.summary);
+            const summaryData = await summaryResponse.json();
+            setSummary(summaryData.summary || "No summary available.");
+            setLoadingSummary(false);
             console.log("📄 Summary generated successfully.");
         } catch (error) {
-            console.error("❌ Error fetching summary:", error);
+            console.error("❌ Error stopping bot:", error);
+            alert("❌ Failed to stop bot. Please check the server.");
+            setLoadingSummary(false);
         }
-        setLoadingSummary(false);
     };
 
     return (
-        <div style={{ textAlign: "center", padding: "20px" }}>
-            <h1>MeetScribe - AI Meeting Transcriber</h1>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
+            <div className="max-w-3xl w-full bg-white shadow-lg rounded-lg p-6">
+                <h1 className="text-3xl font-bold text-center text-blue-600">MeetScribe - AI Meeting Transcriber</h1>
+                <p className="text-center text-gray-600 mt-2">Real-time transcription and AI-powered summaries</p>
 
-            {/* Google Meet URL Input */}
-            <input
-                type="text"
-                value={meetURL}
-                onChange={(e) => setMeetURL(e.target.value)}
-                placeholder="Enter Google Meet URL"
-                style={{ padding: "10px", width: "60%", marginBottom: "10px" }}
-            />
-            <br />
+                {/* Google Meet URL Input */}
+                <div className="mt-6">
+                    <input
+                        type="text"
+                        value={meetURL}
+                        onChange={(e) => setMeetURL(e.target.value)}
+                        placeholder="Enter Google Meet URL"
+                        className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                </div>
 
-            {/* Bot Controls */}
-            <button onClick={startBot}>Start Bot</button>
-            <button onClick={stopBot} style={{ marginLeft: "10px" }}>Stop Bot</button>
+                {/* Bot Controls */}
+                <div className="mt-6 flex justify-center space-x-4">
+                    <button
+                        onClick={startBot}
+                        className={`px-6 py-3 rounded-lg font-semibold text-white transition ${
+                            botActive ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                        }`}
+                        disabled={botActive}
+                    >
+                        {botActive ? "Bot Running..." : "Start Bot"}
+                    </button>
+                    <button
+                        onClick={stopBot}
+                        className={`px-6 py-3 rounded-lg font-semibold text-white transition ${
+                            botActive ? "bg-red-600 hover:bg-red-700" : "bg-gray-400 cursor-not-allowed"
+                        }`}
+                        disabled={!botActive}
+                    >
+                        Stop Bot & Generate Summary
+                    </button>
+                </div>
 
-            <h3>Live Transcript:</h3>
+                {/* Live Transcription Section */}
+                <h3 className="mt-8 text-xl font-semibold text-blue-600">Live Transcript:</h3>
+                <div className="mt-2 p-4 bg-gray-50 border border-gray-200 rounded-lg h-48 overflow-y-auto shadow-sm">
+                    {transcript.length > 0 ? (
+                        transcript.map((word, index) => (
+                            <p key={index} className="text-gray-800">
+                                <strong>[{word.speaker || "Unknown"}]</strong> {word.punctuated_word}
+                            </p>
+                        ))
+                    ) : (
+                        <p className="text-gray-500">No transcript available</p>
+                    )}
+                </div>
 
-            {/* Live Transcription Output */}
-            <div style={{ textAlign: "left", padding: "20px", border: "1px solid black", height: "200px", overflowY: "auto" }}>
-                {transcript.length > 0 ? (
-                    transcript.map((word, index) => (
-                        <p key={index}>
-                            <strong>[{word.speaker || "Unknown"}]</strong> {word.punctuated_word}
-                        </p>
-                    ))
-                ) : (
-                    <p>No transcript available</p>
-                )}
+                {/* Summary Section */}
+                <h3 className="mt-8 text-xl font-semibold text-blue-600">Overview:</h3>
+                <div className="mt-2 p-4 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                    {loadingSummary ? <p className="text-gray-500">Generating summary...</p> : <p>{summary}</p>}
+                </div>
             </div>
-
-            {/* Recording Controls */}
-            <button onClick={startRecording} style={{ marginTop: "20px" }}>Start Recording</button>
-            <button onClick={stopRecording} style={{ marginLeft: "10px" }}>Stop Recording</button>
-
-            <h3>Overview:</h3>
-            {loadingSummary ? <p>Generating summary...</p> : <p>{summary}</p>}
         </div>
     );
 };

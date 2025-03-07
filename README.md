@@ -1,70 +1,86 @@
-# Getting Started with Create React App
+EchoScribe - Real-time Ai Summarizer with Speech-to-Text Transcription
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+EchoScribe is a real-time speech-to-text transcription application that utilizes Deepgram's WebSocket API for accurate and efficient voice recognition.
 
-## Available Scripts
+Features
 
-In the project directory, you can run:
+Real-time speech-to-text conversion
 
-### `npm start`
+Powered by Deepgram's AI-based speech recognition
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+WebSocket-based streaming for low-latency transcription
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Supports multiple languages and models
 
-### `npm test`
+Installation
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Prerequisites
 
-### `npm run build`
+Node.js (Recommended: v18.x.x or v20.x.x)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Deepgram API Key
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+A stable internet connection
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Setup
 
-### `npm run eject`
+Clone the repository:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+git clone https://github.com/yourusername/EchoScribe.git
+cd EchoScribe
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Install dependencies:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+npm install
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Set up your Deepgram API key:
 
-## Learn More
+export DEEPGRAM_API_KEY="your_actual_api_key" # Mac/Linux
+set DEEPGRAM_API_KEY=your_actual_api_key # Windows (CMD)
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Run the server:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+node server.js
 
-### Code Splitting
+Usage
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Speak into your microphone and see real-time transcriptions on your terminal or web interface.
 
-### Analyzing the Bundle Size
+Modify WebSocket URL parameters to adjust language/model settings.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Troubleshooting
 
-### Making a Progressive Web App
+WebSocket Connection Issues
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+If you encounter a WebSocket failure, try the following:
 
-### Advanced Configuration
+Check API Key: Ensure DEEPGRAM_API_KEY is set correctly.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Verify WebSocket URL: Use wss://api.deepgram.com/v1/listen.
 
-### Deployment
+Check Internet Connection: Run ping api.deepgram.com.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Downgrade Node.js if needed: Use a stable LTS version (v20.x.x or v18.x.x).
 
-### `npm run build` fails to minify
+Debugging
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Add logging in server.js:
+
+console.log("Connecting to Deepgram...");
+ws.on("open", () => console.log("✅ WebSocket connected"));
+ws.on("close", () => console.log("❌ WebSocket disconnected"));
+ws.on("error", (err) => console.error("WebSocket Error:", err));
+
+License
+
+This project is licensed under the MIT License.
+
+Author
+
+**Pareekshith P**
+
+**Arun Kumar K **
+
+**Mohammed Naseem **
+
+**Pozhilan A**

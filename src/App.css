@@ -1,5 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 .App {
   text-align: center;
+  background-color: #f8f9fa; /* Light Grayish White */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: #343a40; /* Dark Gray */
 }
 
 .App-logo {
@@ -14,7 +26,7 @@
 }
 
 .App-header {
-  background-color: #282c34;
+  background-color: #007bff; /* Bright Blue */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -22,10 +34,14 @@
   justify-content: center;
   font-size: calc(10px + 2vmin);
   color: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .App-link {
-  color: #61dafb;
+  color: #004085; /* Darker Blue for better contrast */
+  text-decoration: underline;
 }
 
 @keyframes App-logo-spin {
@@ -35,4 +51,13 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Button Styling */
+.button {
+  @apply bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg transition duration-300;
+}
+
+.button:hover {
+  @apply bg-blue-700;
 }

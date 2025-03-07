@@ -7,11 +7,28 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 import sys
 import io
+import subprocess
+import asyncio
+import websockets
+import json
+from dotenv import load_dotenv
+import os
 
-# ✅ Fix UnicodeEncodeError in Windows Terminal
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+# ✅ Load environment variables from .env
+load_dotenv()
+
+# ✅ WebSocket Server URL (for sending transcriptions)
+WS_SERVER_URL = "ws://localhost:5000"
+
+# ✅ Deepgram API Key (Loaded from .env)
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
+
+if not DEEPGRAM_API_KEY:
+    print("❌ ERROR: Deepgram API Key is missing. Please check your .env file.")
+    sys.exit(1)
 
 def join_meeting(meeting_link):
+    """Joins the Google Meet meeting automatically."""
     options = Options()
     options.add_argument("--use-fake-ui-for-media-stream")  # Prevents permission pop-ups
     options.add_argument("--no-sandbox")
@@ -82,18 +99,79 @@ def join_meeting(meeting_link):
         except Exception as e:
             print("❌ Failed to join meeting:", e)
 
-    # ✅ Keep the bot in the meeting indefinitely
-    print("🤖 Bot is now in the meeting. Press CTRL+C to stop.")
-    try:
+    return driver
+
+def start_audio_capture():
+    """Captures meeting audio using FFmpeg."""
+    print("🎤 Starting audio capture...")
+    
+    # ✅ FFmpeg command to capture system audio
+    ffmpeg_cmd = [
+        "ffmpeg",
+        "-f", "dshow",  # DirectShow for Windows
+        "-i", "audio=Stereo Mix",  # Capture system audio (Modify if needed)
+        "-ac", "1",  # Convert to mono
+        "-ar", "16000",  # Sample rate for Deepgram
+        "-acodec", "pcm_s16le",  # 16-bit PCM format
+        "-f", "wav",  # Output format
+        "pipe:1"  # Pipe output to stdout
+    ]
+
+    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    return process
+
+async def transcribe_audio(process):
+    """Streams captured audio to Deepgram for transcription."""
+    print("📝 Connecting to Deepgram for real-time transcription...")
+
+    uri = f"wss://api.deepgram.com/v1/listen?access_token={DEEPGRAM_API_KEY}"
+    
+    async with websockets.connect(uri) as ws:
+        # ✅ Send Deepgram configuration
+        await ws.send(json.dumps({"type": "config", "model": "whisper"}))
+
         while True:
-            time.sleep(1)  # Keeps the script running
-    except KeyboardInterrupt:
-        print("🚪 Exiting Google Meet...")
-        driver.quit()
-        print("✅ Bot has left the meeting.")
+            audio_chunk = process.stdout.read(4096)  # Read audio in small chunks
+            if not audio_chunk:
+                break
+            await ws.send(audio_chunk)  # Send audio to Deepgram
+
+            # ✅ Receive transcription
+            response = await ws.recv()
+            data = json.loads(response)
+
+            if "channel" in data and "alternatives" in data["channel"]:
+                transcription = data["channel"]["alternatives"][0]["transcript"]
+                if transcription:
+                    print(f"📝 Transcription: {transcription}")
+                    await send_to_websocket(transcription)
+
+async def send_to_websocket(transcription):
+    """Sends transcriptions to the WebSocket server."""
+    async with websockets.connect(WS_SERVER_URL) as ws:
+        await ws.send(json.dumps({"transcription": transcription}))
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("❌ Error: Please provide a Google Meet link.")
         sys.exit(1)
-    join_meeting(sys.argv[1])
+
+    driver = join_meeting(sys.argv[1])
+
+    # ✅ Start capturing audio
+    audio_process = start_audio_capture()
+
+    # ✅ Start real-time transcription
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(transcribe_audio(audio_process))
+
+    # ✅ Keep bot in meeting until manually stopped
+    print("🤖 Bot is now in the meeting. Press CTRL+C to stop.")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("🚪 Exiting Google Meet...")
+        driver.quit()
+        audio_process.terminate()
+        print("✅ Bot has left the meeting.")
